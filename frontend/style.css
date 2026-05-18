@@ -1,4 +1,3 @@
-/* Minimalist, modern glass-morphism aesthetic */
 :root {
     --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
     --glass-bg: rgba(255, 255, 255, 0.05);
@@ -6,6 +5,7 @@
     --text-primary: #f8fafc;
     --text-secondary: #94a3b8;
     --accent: #38bdf8;
+    --accent-selected: rgba(56, 189, 248, 0.15);
 }
 
 * {
@@ -54,8 +54,14 @@ header p {
 h2 {
     font-size: 1.2rem;
     font-weight: 500;
-    margin-bottom: 1rem;
+    margin-bottom: 0.5rem;
     color: var(--accent);
+}
+
+.instruction-text {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
 }
 
 .grid-layout {
@@ -66,6 +72,7 @@ h2 {
 
 .table-wrapper {
     overflow-x: auto;
+    position: relative;
 }
 
 table {
@@ -92,8 +99,32 @@ td {
     font-size: 0.95rem;
 }
 
-tbody tr:hover {
-    background: rgba(255, 255, 255, 0.02);
+/* Make device list look interactively clickable */
+#devicesTable tbody tr {
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+#devicesTable tbody tr:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+/* Highlight style for the selected module */
+#devicesTable tbody tr.selected-row {
+    background: var(--accent-selected);
+    border-left: 4px solid var(--accent);
+}
+
+.placeholder-text {
+    padding: 3rem 1rem;
+    text-align: center;
+    color: var(--text-secondary);
+    font-style: italic;
+    font-size: 0.95rem;
+}
+
+.hidden {
+    display: none !important;
 }
 
 @media (max-width: 900px) {

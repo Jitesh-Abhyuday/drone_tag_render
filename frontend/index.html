@@ -10,44 +10,45 @@
     <div class="dashboard-container">
         <header class="glass-panel">
             <h1>IoT Dashboard</h1>
-            <p>Real-time telemetry and device status</p>
+            <p>Real-time telemetry and hardware module inspector</p>
         </header>
 
         <main class="grid-layout">
             <section class="glass-panel section-devices">
-                <h2>Active Devices</h2>
+                <h2>Device Fleet</h2>
+                <p class="instruction-text">Click a module ID to inspect its logs</p>
                 <div class="table-wrapper">
                     <table id="devicesTable">
                         <thead>
                             <tr>
-                                <th>Device ID</th>
-                                <th>First Seen</th>
-                                <th>Last Seen</th>
+                                <th>Module ID</th>
+                                <th>Registered At</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <!-- Populated via JS -->
-                        </tbody>
+                            </tbody>
                     </table>
                 </div>
             </section>
 
             <section class="glass-panel section-logs">
-                <h2>Recent Telemetry Logs</h2>
-                <div class="table-wrapper">
+                <h2 id="logsHeader">Telemetry Logs</h2>
+                <div class="table-wrapper" id="logsTableWrapper">
                     <table id="logsTable">
                         <thead>
                             <tr>
-                                <th>Device ID</th>
+                                <th>Module ID</th>
                                 <th>Latitude</th>
                                 <th>Longitude</th>
                                 <th>Timestamp</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <!-- Populated via JS -->
-                        </tbody>
+                            </tbody>
                     </table>
+                    <div id="logsPlaceholder" class="placeholder-text">
+                        Select a device from the fleet to view its telemetry trail.
+                    </div>
                 </div>
             </section>
         </main>
