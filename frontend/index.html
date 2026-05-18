@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoT Device Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <header class="glass-panel">
+            <h1>IoT Dashboard</h1>
+            <p>Real-time telemetry and device status</p>
+        </header>
+
+        <main class="grid-layout">
+            <section class="glass-panel section-devices">
+                <h2>Active Devices</h2>
+                <div class="table-wrapper">
+                    <table id="devicesTable">
+                        <thead>
+                            <tr>
+                                <th>Device ID</th>
+                                <th>First Seen</th>
+                                <th>Last Seen</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="glass-panel section-logs">
+                <h2>Recent Telemetry Logs</h2>
+                <div class="table-wrapper">
+                    <table id="logsTable">
+                        <thead>
+                            <tr>
+                                <th>Device ID</th>
+                                <th>Latitude</th>
+                                <th>Longitude</th>
+                                <th>Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
