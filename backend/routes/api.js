@@ -86,4 +86,61 @@ router.get('/init-dashboard', async (req, res) => {
   }
 });
 
+// DELETE /api/logs/:id - Delete a single specific log entry
+router.delete('/logs/:id', async (req, res) => {
+  try {
+    const logId = parseInt(req.params.id);
+
+    const deletedLog = await prisma.logs.delete({
+      where: { id: logId }
+    });
+
+    // Notify all dashboard windows to instantly drop this item from RAM cache
+    const wss = req.app.get('wss');
+    if (wss) {
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({ event: 'LOG_DELETED', id: logId }));
+        }
+      });
+    }
+
+    res.status(200).json({ message: 'Log cleared successfully' });
+  } catch (error) {
+    console.error('Error deleting log:', error);
+    res.status(500).json({ error: 'Failed to delete log segment' });
+  }
+});
+
+// DELETE /api/devices/:device_id - Delete device and cascade all its logs
+router.delete('/devices/:device_id', async (req, res) => {
+  try {
+    const { device_id } = req.params;
+    const cleanTrackerId = String(device_id).trim();
+
+    // 1. Wipe it out from the live PostgreSQL database
+    await prisma.devices.delete({
+      where: { device_id: cleanTrackerId }
+    });
+
+    // 2. CRITICAL FIX: Explicitly drop it from the server's Node.js memory cache!
+    knownTrackersCache.delete(cleanTrackerId);
+
+    // 3. Notify all open dashboards via WebSockets
+    const wss = req.app.get('wss');
+    if (wss) {
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({ event: 'DEVICE_DELETED', device_id: cleanTrackerId }));
+        }
+      });
+    }
+
+    res.status(200).json({ message: 'Device and its cascading trail wiped out successfully' });
+  } catch (error) {
+    console.error('Error deleting device:', error);
+    res.status(500).json({ error: 'Failed to purge fleet device' });
+  }
+});
+
 module.exports = router;

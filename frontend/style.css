@@ -1,61 +1,165 @@
+/* Core Structural Tokens & Theme Variables */
 :root {
     --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-    --glass-bg: rgba(255, 255, 255, 0.05);
-    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-bg: rgba(255, 255, 255, 0.04);
+    --glass-border: rgba(255, 255, 255, 0.08);
     --text-primary: #f8fafc;
     --text-secondary: #94a3b8;
     --accent: #38bdf8;
-    --accent-selected: rgba(56, 189, 248, 0.15);
+    --accent-selected: rgba(56, 189, 248, 0.12);
+    --row-hover: rgba(255, 255, 255, 0.02);
+    --card-bg: rgba(0, 0, 0, 0.15);
+    --bold-text: #ffffff;
+    --shadow-color: rgba(0, 0, 0, 0.3);
+}
+
+/* Light Mode Overrides */
+[data-theme="light"] {
+    --bg-gradient: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+    --glass-bg: rgba(255, 255, 255, 0.45);
+    --glass-border: rgba(15, 23, 42, 0.08);
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --accent: #0284c7;
+    --accent-selected: rgba(2, 132, 199, 0.1);
+    --row-hover: rgba(15, 23, 42, 0.02);
+    --card-bg: rgba(255, 255, 255, 0.5);
+    --bold-text: #0f172a;
+    --shadow-color: rgba(148, 163, 184, 0.15);
 }
 
 * {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 }
 
 body {
     background: var(--bg-gradient);
     color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     min-height: 100vh;
-    padding: 2rem;
+    padding: 1rem;
+    line-height: 1.5;
+    /* Clean animation easing for all core visual tokens */
+    transition: background 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+                color 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .dashboard-container {
-    max-width: 1200px;
+    max-width: 1400px;
     margin: 0 auto;
     display: flex;
     flex-direction: column;
-    gap: 2rem;
+    gap: 1.5rem;
+    width: 100%;
 }
 
 .glass-panel {
     background: var(--glass-bg);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border: 1px solid var(--glass-border);
-    border-radius: 16px;
-    padding: 1.5rem;
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+    border-radius: 14px;
+    padding: 1.25rem;
+    box-shadow: 0 8px 32px 0 var(--shadow-color);
+    /* Animates panel backgrounds smoothly */
+    transition: background 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+                border 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+                box-shadow 0.4s ease;
+}
+
+.header-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
 }
 
 header h1 {
-    font-size: 1.8rem;
+    font-size: 1.5rem;
     font-weight: 600;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.25rem;
 }
 
 header p {
     color: var(--text-secondary);
-    font-size: 0.9rem;
+    font-size: 0.85rem;
+}
+
+/* Controls layout arrangement block */
+.controls-group {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+/* Premium Light / Dark Smooth Icon Toggle */
+.btn-theme {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 8px 0 var(--shadow-color);
+    font-size: 1.2rem;
+}
+
+/* Default Dark Mode Icon (Shows Sun to switch to light) */
+.theme-icon::before {
+    content: "☀️";
+    transition: transform 0.4s ease;
+    display: inline-block;
+}
+
+/* Light Mode Icon Override (Shows Moon to switch to dark) */
+[data-theme="light"] .theme-icon::before {
+    content: "🌙";
+    transform: rotate(360deg); /* Nice micro-interaction spin */
+}
+
+.btn-theme:hover {
+    transform: scale(1.05);
+    background: var(--row-hover);
+}
+
+.btn-theme:active {
+    transform: scale(0.95);
+}
+
+/* Show or hide descriptive state indicators natively inside CSS */
+[data-theme="light"] .theme-icon-sun { display: none; }
+:not([data-theme="light"]) .theme-icon-moon { display: none; }
+
+.admin-control-box {
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+}
+
+.switch-label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    color: #ef4444;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 h2 {
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     font-weight: 500;
-    margin-bottom: 0.5rem;
     color: var(--accent);
+    margin-bottom: 0.25rem;
 }
 
 .instruction-text {
@@ -66,69 +170,141 @@ h2 {
 
 .grid-layout {
     display: grid;
-    grid-template-columns: 1fr 2fr;
-    gap: 2rem;
+    grid-template-columns: 340px 1fr;
+    gap: 1.5rem;
+    align-items: start;
+}
+
+.fleet-list-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.fleet-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.85rem 1rem;
+    background: var(--card-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    gap: 0.5rem;
+}
+
+.fleet-row:hover {
+    background: var(--row-hover);
+    transform: translateX(2px);
+}
+
+.fleet-row.selected-row {
+    background: var(--accent-selected);
+    border-color: var(--accent);
+}
+
+.fleet-info-block {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.fleet-id {
+    font-weight: 600;
+    color: var(--bold-text);
+    font-size: 0.9rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fleet-date {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
 }
 
 .table-wrapper {
+    width: 100%;
     overflow-x: auto;
-    position: relative;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 8px;
+    border: 1px solid var(--glass-border);
+    background: var(--card-bg);
 }
 
 table {
     width: 100%;
     border-collapse: collapse;
     text-align: left;
+    font-size: 0.9rem;
 }
 
 th, td {
-    padding: 1rem;
+    padding: 0.85rem 1rem;
     border-bottom: 1px solid var(--glass-border);
     white-space: nowrap;
+    transition: border-color 0.4s ease;
 }
 
 th {
     color: var(--text-secondary);
     font-weight: 500;
-    font-size: 0.85rem;
+    font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    background: rgba(0, 0, 0, 0.05);
 }
 
-td {
-    font-size: 0.95rem;
+td strong {
+    color: var(--bold-text);
 }
 
-/* Make device list look interactively clickable */
-#devicesTable tbody tr {
+.btn-delete {
+    background: rgba(239, 68, 68, 0.12);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
     cursor: pointer;
-    transition: background 0.2s ease;
+    font-weight: 600;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
 }
 
-#devicesTable tbody tr:hover {
-    background: rgba(255, 255, 255, 0.03);
-}
-
-/* Highlight style for the selected module */
-#devicesTable tbody tr.selected-row {
-    background: var(--accent-selected);
-    border-left: 4px solid var(--accent);
+.btn-delete:hover {
+    background: #ef4444;
+    color: white;
 }
 
 .placeholder-text {
-    padding: 3rem 1rem;
+    padding: 4rem 1rem;
     text-align: center;
     color: var(--text-secondary);
     font-style: italic;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
 }
 
 .hidden {
     display: none !important;
 }
 
-@media (max-width: 900px) {
-    .grid-layout {
-        grid-template-columns: 1fr;
-    }
+/* Responsive Viewports Media Rules */
+@media (max-width: 1024px) {
+    .grid-layout { grid-template-columns: 280px 1fr; }
 }
+
+@media (max-width: 768px) {
+    body { padding: 0.5rem; }
+    .grid-layout { grid-template-columns: 1fr; gap: 1rem; }
+    .header-flex { flex-direction: column; align-items: flex-start; }
+    .controls-group { width: 100%; }
+    .btn-theme, .admin-control-box { flex: 1; text-align: center; justify-content: center; }
+    .fleet-row { flex-wrap: wrap; }
+    .btn-delete { width: 100%; text-align: center; margin-top: 0.25rem; }
+}
+
+

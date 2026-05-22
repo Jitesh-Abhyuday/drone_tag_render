@@ -1,33 +1,39 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IoT Device Dashboard</title>
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <div class="dashboard-container">
-        <header class="glass-panel">
-            <h1>IoT Tracker Dashboard</h1>
-            <p>Real-time telemetry and hardware module inspector</p>
+        <header class="glass-panel header-flex">
+            <div>
+                <h1>IoT Tracker Dashboard</h1>
+                <p>Real-time telemetry and hardware module inspector</p>
+            </div>
+
+            <div class="controls-group">
+                <button id="themeToggle" class="btn-theme" aria-label="Toggle Theme">
+                    <span class="theme-icon"></span>
+                </button>
+
+                <div class="admin-control-box">
+                    <label class="switch-label">
+                        <input type="checkbox" id="adminToggle"> Mode: Terminal Admin
+                    </label>
+                </div>
+            </div>
         </header>
 
         <main class="grid-layout">
             <section class="glass-panel section-devices">
                 <h2>Device Fleet</h2>
                 <p class="instruction-text">Click a Tracker ID to inspect its logs</p>
-                <div class="table-wrapper">
-                    <table id="devicesTable">
-                        <thead>
-                            <tr>
-                                <th>Tracker ID</th>
-                                <th>Registered At</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            </tbody>
-                    </table>
+                <div id="deviceFleetList" class="fleet-list-wrapper">
                 </div>
             </section>
 
@@ -43,10 +49,11 @@
                                 <th>Altitude</th>
                                 <th>Timestamp</th>
                                 <th>Map Action</th>
+                                <th class="admin-field hidden">Delete</th>
                             </tr>
                         </thead>
                         <tbody>
-                            </tbody>
+                        </tbody>
                     </table>
                     <div id="logsPlaceholder" class="placeholder-text">
                         Select a device from the fleet to view its telemetry trail.
@@ -57,4 +64,5 @@
     </div>
     <script src="app.js"></script>
 </body>
+
 </html>
