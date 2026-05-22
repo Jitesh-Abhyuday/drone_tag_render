@@ -1,5 +1,5 @@
 const API_BASE = '/api';
-const ADMIN_KEYCODE = 'admin123'; // Change this token string to your preferred administrative passcode
+const ADMIN_KEYCODE = 'admin123';
 
 let selectedDeviceId = null;
 let devicesList = [];
@@ -7,16 +7,32 @@ let allLogsCache = [];
 let socket = null;
 let isAdminMode = false;
 
-/**
- * Generates an anchor element tracking link if present
- */
 const getMapLinkHtml = (maplink) => {
     if (!maplink) return 'N/A';
     return `<a href="${maplink}" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 500;">Open Map ↗</a>`;
 };
 
 /**
- * Renders the Device Fleet side-panel list using responsive flex cards
+ * Calculates time differences against current local runtime context clocks
+ * Returns a structural status configuration object
+ */
+const calculateHeartbeatStatus = (lastSeenEpoch) => {
+    if (!lastSeenEpoch) return { class: 'status-offline', label: 'Offline' };
+    
+    const diffMs = Date.now() - Number(lastSeenEpoch);
+    const diffMinutes = diffMs / 1000 / 60;
+
+    if (diffMinutes <= 2) {
+        return { class: 'status-active', label: 'Active' };
+    } else if (diffMinutes <= 15) {
+        return { class: 'status-delayed', label: 'Delayed' };
+    } else {
+        return { class: 'status-offline', label: 'Offline' };
+    }
+};
+
+/**
+ * Re-renders the Device Fleet sidebar pane list
  */
 const renderDevicesTable = () => {
     const container = document.getElementById('deviceFleetList');
@@ -31,42 +47,40 @@ const renderDevicesTable = () => {
         const row = document.createElement('div');
         row.className = 'fleet-row';
         
-        // Apply selection class using strict normalized comparison keys
         const cleanCurrentId = String(device.device_id).trim();
-        const cleanSelectedId = selectedDeviceId ? String(selectedDeviceId).trim() : null;
-
-        if (cleanSelectedId === cleanCurrentId) {
+        if (selectedDeviceId && String(selectedDeviceId).trim() === cleanCurrentId) {
             row.classList.add('selected-row');
         }
 
+        // Determine current network runtime heartbeat state configuration
+        const status = calculateHeartbeatStatus(device.last_seen);
+
         row.innerHTML = `
             <div class="fleet-info-block">
-                <span class="fleet-id">${cleanCurrentId}</span>
+                <div class="fleet-meta-box">
+                    <span class="status-dot ${status.class}" title="Device status: ${status.label}"></span>
+                    <span class="fleet-id">${cleanCurrentId}</span>
+                </div>
                 <span class="fleet-date">Reg: ${device.created_at || 'N/A'}</span>
             </div>
             <button class="btn-delete admin-field ${isAdminMode ? '' : 'hidden'}" data-id="${cleanCurrentId}">Purge</button>
         `;
 
-        // Selection routing logic click listener
         row.addEventListener('click', (e) => {
-            if (e.target.classList.contains('btn-delete')) return; // Prevent bubble click overlap
+            if (e.target.classList.contains('btn-delete')) return;
             selectedDeviceId = cleanCurrentId;
             document.querySelectorAll('.fleet-row').forEach(r => r.classList.remove('selected-row'));
             row.classList.add('selected-row');
             renderLogsDisplay();
         });
 
-        // Delete Whole Device Action Handler
         const deleteBtn = row.querySelector('.btn-delete');
         deleteBtn.addEventListener('click', async () => {
-            const confirmPurge = confirm(`🚨 SYSTEM CRITICAL WARNING:\nAre you absolutely sure you want to delete Device "${cleanCurrentId}"?\nThis wipes out all telemetry history logs across the entire database permanently.`);
+            const confirmPurge = confirm(`🚨 SYSTEM CRITICAL WARNING:\nAre you sure you want to delete Device "${cleanCurrentId}"?`);
             if (confirmPurge) {
                 try {
-                    const response = await fetch(`${API_BASE}/devices/${encodeURIComponent(cleanCurrentId)}`, { method: 'DELETE' });
-                    if (!response.ok) throw new Error('Network error during deletion conversion');
-                } catch (err) { 
-                    console.error('Error executing cascade purge sequence:', err); 
-                }
+                    await fetch(`${API_BASE}/devices/${encodeURIComponent(cleanCurrentId)}`, { method: 'DELETE' });
+                } catch (err) { console.error(err); }
             }
         });
 
@@ -75,8 +89,23 @@ const renderDevicesTable = () => {
 };
 
 /**
- * Filters the master logs cache and renders rows matching the selected device
+ * Refreshes only the visual heartbeat dot elements in-place to avoid total component flashes
  */
+const updateHeartbeatDotsOnly = () => {
+    const rows = document.querySelectorAll('.fleet-row');
+    rows.forEach((row, index) => {
+        const device = devicesList[index];
+        if (!device) return;
+        
+        const status = calculateHeartbeatStatus(device.last_seen);
+        const dot = row.querySelector('.status-dot');
+        if (dot) {
+            dot.className = `status-dot ${status.class}`;
+            dot.title = `Device status: ${status.label}`;
+        }
+    });
+};
+
 const renderLogsDisplay = () => {
     const tbody = document.querySelector('#logsTable tbody');
     const tableElement = document.querySelector('#logsTable');
@@ -92,8 +121,6 @@ const renderLogsDisplay = () => {
 
     const cleanSelectedId = String(selectedDeviceId).trim();
     header.textContent = `Telemetry Logs for ${cleanSelectedId}`;
-    
-    // Filter array via cross-referenced clean keys
     const filteredLogs = allLogsCache.filter(log => String(log.device_id).trim() === cleanSelectedId);
 
     tbody.innerHTML = '';
@@ -122,16 +149,12 @@ const renderLogsDisplay = () => {
             </td>
         `;
 
-        // Single Log Segment Delete Action Handler
         const deleteLogBtn = row.querySelector('.btn-delete');
         deleteLogBtn.addEventListener('click', async () => {
-            if (confirm(`Delete this specific data packet coordinate block entry?`)) {
+            if (confirm(`Delete this specific data packet entry?`)) {
                 try {
-                    const response = await fetch(`${API_BASE}/logs/${log.id}`, { method: 'DELETE' });
-                    if (!response.ok) throw new Error('Failed segment removal call');
-                } catch (err) { 
-                    console.error('Error deleting specific packet row instance:', err); 
-                }
+                    await fetch(`${API_BASE}/logs/${log.id}`, { method: 'DELETE' });
+                } catch (err) { console.error(err); }
             }
         });
 
@@ -139,13 +162,10 @@ const renderLogsDisplay = () => {
     });
 };
 
-/**
- * Downloads bootstrap historical data frame indexes on page mount
- */
 const loadInitialData = async () => {
     try {
         const response = await fetch(`${API_BASE}/init-dashboard`);
-        if (!response.ok) throw new Error('Failed to synchronize initial server state context');
+        if (!response.ok) throw new Error('Failed to load indices');
         const data = await response.json();
         
         devicesList = data.devices;
@@ -153,96 +173,71 @@ const loadInitialData = async () => {
         
         renderDevicesTable();
         renderLogsDisplay();
-    } catch (error) { 
-        console.error('Initial indices payload download failed:', error); 
-    }
+    } catch (error) { console.error(error); }
 };
 
-/**
- * Establishes real-time duplex synchronization via active WebSocket pipe
- */
 const connectWebSocket = () => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}`;
-    
-    socket = new WebSocket(wsUrl);
+    socket = new WebSocket(`${protocol}//${window.location.host}`);
 
     socket.onmessage = (event) => {
         const message = JSON.parse(event.data);
         
-        // Real-Time Event 1: New Tracker Packet Received
         if (message.event === 'NEW_TELEMETRY') {
             const newLog = message.data;
+            const liveTimestamp = message.last_seen;
             const incomingDeviceId = String(newLog.device_id).trim();
-            const currentSelectedId = selectedDeviceId ? String(selectedDeviceId).trim() : null;
 
             allLogsCache.unshift(newLog);
-            if (allLogsCache.length > 150) allLogsCache.pop(); // Caps client memory load array frames
+            if (allLogsCache.length > 150) allLogsCache.pop();
 
-            const exists = devicesList.some(d => String(d.device_id).trim() === incomingDeviceId);
-            if (!exists) {
-                devicesList.unshift({ device_id: incomingDeviceId, created_at: newLog.timestamp });
+            // Locate and refresh target tracker entry runtime metrics inside internal list cache
+            const targetDevice = devicesList.find(d => String(d.device_id).trim() === incomingDeviceId);
+            
+            if (!targetDevice) {
+                devicesList.unshift({ 
+                    device_id: incomingDeviceId, 
+                    created_at: newLog.timestamp,
+                    last_seen: liveTimestamp 
+                });
                 renderDevicesTable();
-            } else if (isAdminMode) {
-                // Ensure layout buttons remain systematically visible if list renders dynamically
-                renderDevicesTable(); 
+            } else {
+                targetDevice.last_seen = liveTimestamp;
+                renderDevicesTable(); // Triggers structural top-resort positioning alignment
             }
 
-            // Instantly render log updates onto the display container grid if active
-            if (currentSelectedId === incomingDeviceId) {
+            if (selectedDeviceId && String(selectedDeviceId).trim() === incomingDeviceId) {
                 renderLogsDisplay();
             }
         } 
-        
-        // Real-Time Event 2: Target Log Point Purged by an Admin
         else if (message.event === 'LOG_DELETED') {
             allLogsCache = allLogsCache.filter(log => log.id !== message.id);
             if (selectedDeviceId) renderLogsDisplay();
         } 
-        
-        // Real-Time Event 3: Complete Device Cascade-Wiped out by an Admin
         else if (message.event === 'DEVICE_DELETED') {
             const deletedTargetId = String(message.device_id).trim();
-            
             devicesList = devicesList.filter(d => String(d.device_id).trim() !== deletedTargetId);
             allLogsCache = allLogsCache.filter(log => String(log.device_id).trim() !== deletedTargetId);
-            
-            if (selectedDeviceId && String(selectedDeviceId).trim() === deletedTargetId) {
-                selectedDeviceId = null;
-            }
+            if (selectedDeviceId && String(selectedDeviceId).trim() === deletedTargetId) selectedDeviceId = null;
             renderDevicesTable();
             renderLogsDisplay();
         }
     };
 
-    // Auto-reconnect engine tracking loop
-    socket.onclose = () => {
-        console.log('Real-time pipeline disconnected. Retrying stream handshake in 4s...');
-        setTimeout(connectWebSocket, 4000);
-    };
-
-    socket.onerror = (err) => {
-        console.error('Socket engine encountered structural exception:', err);
-        socket.close();
-    };
+    socket.onclose = () => setTimeout(connectWebSocket, 4000);
 };
 
-/**
- * Initialize Dashboard
- */
 const initDashboard = () => {
     loadInitialData();
     connectWebSocket();
 
-    // Theme Engine Handshake (Validates stored values or default system configs)
+    // Theme Engine setup
     const cachedTheme = localStorage.getItem('theme');
     const prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
-    
     if (cachedTheme === 'light' || (!cachedTheme && prefersLight)) {
         document.documentElement.setAttribute('data-theme', 'light');
     }
 
-    // Theme Toggle Handler
     document.getElementById('themeToggle').addEventListener('click', () => {
         const currentTheme = document.documentElement.getAttribute('data-theme');
         if (currentTheme === 'light') {
@@ -254,7 +249,9 @@ const initDashboard = () => {
         }
     });
 
-    // Admin Mode Change Handler with prompt validation check
+    // Localized UI Loop: Recalculates time delta colors every 10 seconds on browser background layers
+    setInterval(updateHeartbeatDotsOnly, 10000);
+
     const toggle = document.getElementById('adminToggle');
     toggle.addEventListener('change', (e) => {
         if (e.target.checked) {

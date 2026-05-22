@@ -3,10 +3,10 @@ const router = express.Router();
 const prisma = require('../db');
 const WebSocket = require('ws');
 
-// In-memory cache to keep track of already registered tracker modules
-const knownTrackersCache = new Set();
+// UPGRADED: Map stores { trackerId => lastSeenEpochTimestamp }
+const knownTrackersCache = new Map();
 
-// POST /api/data - Hardware uploads remain 100% unchanged
+// POST /api/data - Hardware telemetry collector
 router.post('/data', async (req, res) => {
   try {
     const { TrackerID, Latitude, Longitude, Altitude, Timestamp, Maplink } = req.body;
@@ -22,7 +22,7 @@ router.post('/data', async (req, res) => {
     const cleanTime = String(Timestamp).trim();
     const cleanMapLink = Maplink ? String(Maplink).trim() : '';
 
-    // Step 1: Optimized Device check using memory cache
+    // Step 1: Optimized Device existence check using updated Map memory cache
     if (!knownTrackersCache.has(cleanTrackerId)) {
       let device = await prisma.devices.findUnique({
         where: { device_id: cleanTrackerId }
@@ -36,8 +36,11 @@ router.post('/data', async (req, res) => {
           }
         });
       }
-      knownTrackersCache.add(cleanTrackerId);
     }
+    
+    // CRITICAL: Update/Insert the live tracking epoch runtime marker into RAM cache
+    const currentEpoch = Date.now();
+    knownTrackersCache.set(cleanTrackerId, currentEpoch);
 
     // Step 2: Record telemetry log point in database
     const log = await prisma.logs.create({
@@ -51,12 +54,16 @@ router.post('/data', async (req, res) => {
       }
     });
 
-    // Step 3: Broadcast packet to all connected dashboards via WebSockets instantly
+    // Step 3: Broadcast packet along with its real-time last_seen timestamp
     const wss = req.app.get('wss');
     if (wss) {
       wss.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
-          client.send(JSON.stringify({ event: 'NEW_TELEMETRY', data: log }));
+          client.send(JSON.stringify({ 
+            event: 'NEW_TELEMETRY', 
+            data: log,
+            last_seen: currentEpoch 
+          }));
         }
       });
     }
@@ -68,7 +75,7 @@ router.post('/data', async (req, res) => {
   }
 });
 
-// GET /api/init-dashboard - Load initial historical state on page load
+// GET /api/init-dashboard - Load initial historical state with memory timestamps
 router.get('/init-dashboard', async (req, res) => {
   try {
     const [devices, logs] = await Promise.all([
@@ -76,13 +83,52 @@ router.get('/init-dashboard', async (req, res) => {
       prisma.logs.findMany({ orderBy: { id: 'desc' }, take: 100 })
     ]);
     
-    // Prime our in-memory cache if the server restarts
-    devices.forEach(d => knownTrackersCache.add(d.device_id));
+    // Map devices to include their cached uptime metric if present, fallback to converting db logs
+    const enhancedDevices = devices.map(device => {
+      const dId = String(device.device_id).trim();
+      
+      // If server doesn't have it cached, look through raw logs to guess last timestamp
+      if (!knownTrackersCache.has(dId)) {
+        const match = logs.find(l => String(l.device_id).trim() === dId);
+        const inferredTime = match ? new Date(match.timestamp).getTime() : new Date(device.created_at).getTime();
+        knownTrackersCache.set(dId, inferredTime || Date.now());
+      }
 
-    res.status(200).json({ devices, logs });
+      return {
+        ...device,
+        last_seen: knownTrackersCache.get(dId)
+      };
+    });
+
+    res.status(200).json({ devices: enhancedDevices, logs });
   } catch (error) {
     console.error('Initial load error:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// DELETE /api/devices/:device_id - Custom cascading wipe out
+router.delete('/devices/:device_id', async (req, res) => {
+  try {
+    const { device_id } = req.params;
+    const cleanTrackerId = String(device_id).trim();
+
+    await prisma.devices.delete({ where: { device_id: cleanTrackerId } });
+    
+    // Clear registration references completely from active RAM track mapping
+    knownTrackersCache.delete(cleanTrackerId);
+
+    const wss = req.app.get('wss');
+    if (wss) {
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({ event: 'DEVICE_DELETED', device_id: cleanTrackerId }));
+        }
+      });
+    }
+    res.status(200).json({ message: 'Device purged successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to purge device' });
   }
 });
 
@@ -109,37 +155,6 @@ router.delete('/logs/:id', async (req, res) => {
   } catch (error) {
     console.error('Error deleting log:', error);
     res.status(500).json({ error: 'Failed to delete log segment' });
-  }
-});
-
-// DELETE /api/devices/:device_id - Delete device and cascade all its logs
-router.delete('/devices/:device_id', async (req, res) => {
-  try {
-    const { device_id } = req.params;
-    const cleanTrackerId = String(device_id).trim();
-
-    // 1. Wipe it out from the live PostgreSQL database
-    await prisma.devices.delete({
-      where: { device_id: cleanTrackerId }
-    });
-
-    // 2. CRITICAL FIX: Explicitly drop it from the server's Node.js memory cache!
-    knownTrackersCache.delete(cleanTrackerId);
-
-    // 3. Notify all open dashboards via WebSockets
-    const wss = req.app.get('wss');
-    if (wss) {
-      wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(JSON.stringify({ event: 'DEVICE_DELETED', device_id: cleanTrackerId }));
-        }
-      });
-    }
-
-    res.status(200).json({ message: 'Device and its cascading trail wiped out successfully' });
-  } catch (error) {
-    console.error('Error deleting device:', error);
-    res.status(500).json({ error: 'Failed to purge fleet device' });
   }
 });
 
