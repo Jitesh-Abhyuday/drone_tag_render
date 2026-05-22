@@ -19,4 +19,6 @@ model logs {
   latitude  String? @db.VarChar(225)
   longitude String? @db.VarChar(225)
   timestamp String? @db.VarChar
+  altitude  String? @db.VarChar(225)
+  maplink   String? @db.VarChar
 }
